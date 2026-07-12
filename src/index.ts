@@ -341,6 +341,14 @@ function createMcpServer(): McpServer {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// ---------------------------------------------------------------------------
+// MCP secret-path guard — the /mcp endpoint lives at a secret URL
+// ---------------------------------------------------------------------------
+const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
+if (!MCP_AUTH_TOKEN) {
+  throw new Error("MCP_AUTH_TOKEN environment variable is required");
+}
+const MCP_PATH = `/mcp/${MCP_AUTH_TOKEN}`;
 
 // ---------------------------------------------------------------------------
 // Admin auth middleware for /setup routes
@@ -541,7 +549,7 @@ app.get("/health", (_req, res) => {
 // MCP transport — Streamable HTTP (stateless: each request gets a fresh server)
 // ---------------------------------------------------------------------------
 
-app.post("/mcp", async (req: Request, res: Response) => {
+app.post(MCP_PATH, async (req: Request, res: Response) => {
   try {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless — no session tracking
@@ -569,7 +577,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/mcp", async (req: Request, res: Response) => {
+app.get(MCP_PATH, async (req: Request, res: Response) => {
   res.status(405).json({
     jsonrpc: "2.0",
     error: { code: -32000, message: "SSE streams not supported in stateless mode. Use POST." },
@@ -577,7 +585,7 @@ app.get("/mcp", async (req: Request, res: Response) => {
   });
 });
 
-app.delete("/mcp", async (req: Request, res: Response) => {
+app.delete(MCP_PATH, async (req: Request, res: Response) => {
   res.status(405).json({
     jsonrpc: "2.0",
     error: { code: -32000, message: "Session management not used in stateless mode." },
