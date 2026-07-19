@@ -138,12 +138,11 @@ export class TokenStore {
   }
 
   private save(): void {
+    // Persist to the data file only. The encrypted TOKENS_DATA blob is NO
+    // LONGER logged to the console (it used to be printed on every save, which
+    // put it into Railway's log stream). Export it deliberately via
+    // getTokensDataForExport() if a manual backup is ever needed.
     this.saveToFile();
-
-    // Also output the base64-encoded data for the TOKENS_DATA env var
-    const data: StoreData = { accounts: Array.from(this.accounts.values()) };
-    const encoded = Buffer.from(JSON.stringify(data)).toString("base64");
-    console.log(`[token-store] TOKENS_DATA=${encoded}`);
   }
 
   /** Returns base64-encoded token data for copying to env var */
