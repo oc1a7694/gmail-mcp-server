@@ -245,21 +245,10 @@ export class GmailService {
       }
     }
 
-    // 3. Try mailto from List-Unsubscribe header
+    // 3. mailto-based unsubscribe is intentionally NOT auto-actioned.
+    // Sending mail is outside this server's capability set (no send path),
+    // so any mailto unsubscribe link is surfaced for the user to action.
     const mailtoMatch = listUnsubscribe.match(/mailto:([^>,\s]+)/i);
-    if (mailtoMatch) {
-      const mailtoAddr = mailtoMatch[1];
-      try {
-        await this.sendUnsubscribeMail(mailtoAddr);
-        return {
-          success: true,
-          method: "header-mailto",
-          detail: `Sent unsubscribe email to ${mailtoAddr}`,
-        };
-      } catch (err) {
-        // Fall through
-      }
-    }
 
     // 4. Scan body for unsubscribe links
     const bodyLinks = this.extractUnsubscribeLinksFromBody(email.body);
@@ -284,6 +273,7 @@ export class GmailService {
 
     // 5. Nothing worked — return the links we found so Claude can inform the user
     const allLinks = [...httpLinks, ...bodyLinks];
+    if (mailtoMatch) allLinks.push(`mailto:${mailtoMatch[1]}`);
     return {
       success: false,
       method: "none",
@@ -294,24 +284,9 @@ export class GmailService {
     };
   }
 
-  private async sendUnsubscribeMail(toAddress: string): Promise<void> {
-    // Compose a minimal unsubscribe email
-    const raw = Buffer.from(
-      [
-        `To: ${toAddress}`,
-        `Subject: Unsubscribe`,
-        `Content-Type: text/plain; charset="UTF-8"`,
-        "",
-        "Unsubscribe",
-      ].join("\r\n")
-    )
-      .toString("base64url");
-
-    await this.gmail.users.messages.send({
-      userId: "me",
-      requestBody: { raw },
-    });
-  }
+  // NOTE: sendUnsubscribeMail() was removed in the Phase B hardening patch.
+  // This server has no email-send capability; the mailto branch above now
+  // only surfaces the address for the user rather than sending on their behalf.
 
   // -----------------------------------------------------------------------
   // batch_process — fetch structured data for Claude to decide on
